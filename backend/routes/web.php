@@ -25,5 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/import-schedule', [ScheduleImportController::class, 'store'])->name('schedule.import');
 });
-
-require __DIR__.'/auth.php';
+Route::get('/library', function () {
+    return Inertia::render('ScheduleLibrary');
+})->middleware(['auth', 'verified'])->name('library');
+require __DIR__ . '/auth.php';
