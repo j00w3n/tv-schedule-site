@@ -6,9 +6,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
+use App\Models\SystemLog;
 
 class ScheduleImportController extends Controller
 {
+    protected function writeTelemetryLog(string $message, string $type = 'SYS', string $status = 'info', ?string $channel = null, ?int $cycle = null)
+    {
+        SystemLog::create([
+            'log_type'     => $type,
+            'message'      => $message,
+            'channel_name' => $channel,
+            'day_cycle'    => $cycle,
+            'status_level' => $status,
+        ]);
+    }
     public function store(Request $request)
     {
         // 1. Validation: Either a file OR a text string must be present
@@ -23,7 +34,7 @@ class ScheduleImportController extends Controller
         // In app/Http/Controllers/YourController.php
         $dayCycle = $request->day_cycle;
         $fileName  = '';
-
+        
         // 2. Source Identification
         if ($request->filled('schedule_text')) {
             $content = $request->schedule_text;
@@ -34,6 +45,13 @@ class ScheduleImportController extends Controller
         } else {
             return back()->with('error', 'Please provide either a file or paste the schedule text.');
         }
+        $this->writeTelemetryLog(
+            message: "Data payload successfully synchronized.",
+            type: "UPLINK",
+            status: "success",
+            channel: $channelId, // e.g., VIVTECH_MAIN
+            cycle: $dayCycle       // e.g., 101
+        );
 
         // 3. PARSING LOGIC
         // Split into blocks based on "Start time:" (Case Insensitive)
@@ -109,7 +127,6 @@ class ScheduleImportController extends Controller
 
             return back()->with('message', "Successfully synced Cycle $dayCycle for Channel $channelId.");
         }
-
         return back()->with('error', 'Parser failed to extract valid data.');
     }
 }

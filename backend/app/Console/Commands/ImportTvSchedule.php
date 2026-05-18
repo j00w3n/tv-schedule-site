@@ -14,6 +14,7 @@ class ImportTvSchedule extends Command
      * @var string
      */
     protected $signature = 'app:import-schedule {channel}';
+    
     /**
      * The console command description.
      *
@@ -28,8 +29,12 @@ class ImportTvSchedule extends Command
 
     public function handle()
     {
-        // Get the channel ID from the command argument
         $channelId = $this->argument('channel');
+
+        // 1. DYNAMIC OFFSET CALCULATION: Read an option or argument passed from console
+        // Example command run: php artisan schedule:import VIVTECH_MAIN --offset=100
+        $monthOffset = (int) $this->option('offset', 0);
+
         $path = storage_path('app/schedule.txt');
 
         if (!file_exists($path)) {
@@ -40,10 +45,13 @@ class ImportTvSchedule extends Command
         $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         $importedCount = 0;
         $skippedCount = 0;
-        $currentDay = 1; // Default starting day
+        $currentDay = 1 + $monthOffset; // Apply base starting window day directly
 
-        // Clean existing templates for this channel to prevent duplicates
-        DB::table('schedule_templates')->where('channel_id', $channelId)->delete();
+        // 2. SAFE PURGE: Only delete existing slots for this channel WITHIN this month's window range
+        DB::table('schedule_templates')
+            ->where('channel_id', $channelId)
+            ->whereBetween('day_cycle', [$monthOffset + 1, $monthOffset + 299])
+            ->delete();
 
         foreach ($lines as $index => $line) {
             $line = trim($line);
@@ -51,7 +59,10 @@ class ImportTvSchedule extends Command
             // A. Detect Day Change: # [DAY : 10]
             if (str_contains($line, '[DAY :')) {
                 preg_match('/DAY : (\d+)/', $line, $dayMatch);
-                $currentDay = $dayMatch[1] ?? $currentDay;
+                $rawDay = isset($dayMatch[1]) ? (int)$dayMatch[1] : 1;
+
+                // Increment forward relative to your month offset window selection
+                $currentDay = $rawDay + $monthOffset;
                 continue;
             }
 
@@ -62,11 +73,9 @@ class ImportTvSchedule extends Command
                 preg_match('/DURATION : ([\d:]+)/', $line, $durMatch);
                 $duration = $durMatch[1] ?? '00:00:00';
 
-                // Convert HH:MM:SS to seconds
                 $parts = explode(':', $duration);
                 $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + $parts[2];
 
-                // THE PURGE: If it's a short filler (less than 60 seconds), skip it
                 if ($seconds < 120) {
                     $skippedCount++;
                     continue;
@@ -88,12 +97,14 @@ class ImportTvSchedule extends Command
                         $cleanTitle = str_replace(['mo', '.aes', 'ep', '_'], ['', '', ' Ep ', ' '], $filename);
                         $cleanTitle = preg_replace('/([a-z])([A-Z])/', '$1 $2', $cleanTitle);
 
+                        $finalTitleKey = strtoupper(trim($cleanTitle));
+
                         if ($startTime && $endTime) {
                             // Insert into the MASTER TEMPLATE table
                             DB::table('schedule_templates')->insert([
                                 'channel_id'       => $channelId,
-                                'day_cycle'        => $currentDay,
-                                'title'            => trim($cleanTitle),
+                                'day_cycle'        => $currentDay, // Stores correctly as 101, 102, etc.
+                                'title'            => $finalTitleKey,
                                 'start_time'       => $startTime,
                                 'end_time'         => $endTime,
                                 'duration_seconds' => $seconds,
@@ -102,12 +113,20 @@ class ImportTvSchedule extends Command
                                 'updated_at'       => now(),
                             ]);
                             $importedCount++;
+
+                            // Lock unique rows straight into the dictionary table
+                            DB::table('program_dictionaries')->insertOrIgnore([
+                                'title'       => $finalTitleKey,
+                                'description' => '',
+                                'created_at'  => now(),
+                                'updated_at'  => now()
+                            ]);
                         }
                     }
                 }
             }
         }
 
-        $this->info("CHANNEL $channelId: Imported $importedCount programs. Purged $skippedCount fillers.");
+        $this->info("CHANNEL $channelId (Offset: $monthOffset): Imported $importedCount programs. Purged $skippedCount fillers.");
     }
 }

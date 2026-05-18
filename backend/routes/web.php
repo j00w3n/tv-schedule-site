@@ -5,6 +5,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ScheduleImportController;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\ProgramDictionaryController;
+use Illuminate\Http\Request;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -29,3 +32,9 @@ Route::get('/library', function () {
     return Inertia::render('ScheduleLibrary');
 })->middleware(['auth', 'verified'])->name('library');
 require __DIR__ . '/auth.php';
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/program-library', [ProgramDictionaryController::class, 'index'])->name('program-library.index');
+    Route::get('/program-library/data', [ProgramDictionaryController::class, 'getData'])->name('program-library.data');
+    Route::post('/program-library/save', [ProgramDictionaryController::class, 'saveInline'])->name('program-library.save');
+});

@@ -105,7 +105,31 @@ export default function Dashboard({ auth }) {
         schedule_file: null,
         schedule_text: '', // New field for direct paste
     });
+        // Inside your Dashboard component function: for logging and telemetry
+        const [telemetryLogs, setTelemetryLogs] = useState([]);
+        const [isLinkStable, setIsLinkStable] = useState(true);
 
+        const fetchTelemetryFeed = async () => {
+            try {
+                const response = await axios.get('/api/telemetry/feed');
+                setTelemetryLogs(response.data);
+                setIsLinkStable(true);
+            } catch (error) {
+                console.error("Telemetry link tracking lost:", error);
+                setIsLinkStable(false);
+            }
+        };
+
+        useEffect(() => {
+            // Initial fetch on view load
+            fetchTelemetryFeed();
+
+            // Auto-refresh interval (15 seconds) for real-time tracking
+            const feedInterval = setInterval(fetchTelemetryFeed, 15000);
+
+            // Cleanup link on unmount
+            return () => clearInterval(feedInterval);
+        }, []);
     const fetchMonitor = async () => {
         try {
             const res = await axios.get('/api/dashboard');
@@ -311,31 +335,53 @@ export default function Dashboard({ auth }) {
 
                         {/* LOGS */}
                        <div className="lg:col-span-2 bg-slate-950 border border-slate-800 p-6 rounded-lg shadow-2xl relative overflow-hidden">
-                        {/* Decorative Scanline Effect */}
-                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-blue-500/5 to-transparent h-[200%] animate-scan"></div>
-                        
-                        <h3 className="text-white font-black mb-4 flex items-center gap-2 text-[10px] tracking-widest">
-                            <span className="p-1 bg-blue-600 text-white text-[8px] rounded font-black animate-pulse">LOG</span>
-                            SYSTEM_TELEMETRY_FEED
-                        </h3>
+                            {/* CRT Monitor Effects */}
+                            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-20"></div>
 
-                        <div className="font-mono text-[10px] space-y-2 relative z-10">
-                            {/* Laravel Flash Messages (High Priority) */}
-                            {flash?.message && (
-                                <p className="text-emerald-400 font-bold animate-bounce uppercase">
-                                    {`> ALERT: ${flash.message}`}
-                                </p>
-                            )}
-                            
-                            {/* Dynamic Telemetry Stream */}
-                            {telemetry.map((log, index) => (
-                                <p key={index} className={`${index === 0 ? 'text-blue-400' : 'text-slate-600'} tracking-tighter uppercase`}>
-                                    {`> ${log}`}
-                                </p>
-                            ))}
+                            <h3 className="text-white font-black mb-4 flex items-center justify-between text-[10px] tracking-[0.3em]">
+                                <div className="flex items-center gap-2">
+                                    <span className={`p-1 text-white text-[8px] rounded font-black ${isLinkStable ? 'bg-blue-600 animate-pulse' : 'bg-rose-600'}`}>
+                                        {isLinkStable ? 'LIVE' : 'DOWN'}
+                                    </span>
+                                    SYSTEM_TELEMETRY_FEED
+                                </div>
+                                <span className="text-slate-600 font-mono text-[8px]">
+                                    SECURE_CONNECTION // UP
+                                </span>
+                            </h3>
+
+                            <div className="font-mono text-[10px] space-y-1.5 relative z-10 min-h-[140px] max-h-[220px] overflow-y-auto custom-scrollbar">
+                                {telemetryLogs.length > 0 ? (
+                                    telemetryLogs.map((log) => {
+                                        // Determine layout text color based on DB status_level column
+                                        let textClass = "text-blue-400"; // default info status
+                                        if (log.status_level === 'success') textClass = "text-emerald-400 font-bold";
+                                        if (log.status_level === 'warning') textClass = "text-amber-500 font-bold";
+                                        if (log.status_level === 'critical') textClass = "text-rose-500 font-black animate-pulse";
+
+                                        // Format the timestamp nicely from DB string
+                                        const logTime = new Date(log.created_at).toLocaleTimeString('en-US', { hour12: false });
+
+                                        return (
+                                            <p key={log.id} className="tracking-tighter uppercase transition-all flex items-start gap-2">
+                                                <span className="text-slate-600 select-none">[{logTime}]</span>
+                                                <span className="text-slate-500 font-black">[{log.log_type}]</span>
+                                                <span className={textClass}>
+                                                    {log.message} 
+                                                    {log.channel_name && ` | ${log.channel_name}`}
+                                                    {log.day_cycle && ` | CYC_${log.day_cycle}`}
+                                                </span>
+                                            </p>
+                                        );
+                                    })
+                                ) : (
+                                    <p className="text-slate-700 uppercase tracking-widest text-center pt-8 animate-pulse">
+                                        &gt; INITIALIZING_PIPE_EMPTY_LOG_SET...
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                                        </div>
+                   </div>
                 </div>
             </div>
         </AuthenticatedLayout>
