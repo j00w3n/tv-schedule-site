@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\SystemLog;
 use App\Models\ProgramDictionary;
+use Carbon\Carbon;
 
 class ScheduleListController extends Controller
 {
@@ -48,8 +49,7 @@ class ScheduleListController extends Controller
         $schedules = $query->orderBy('schedule_templates.day_cycle')
             ->orderBy('schedule_templates.channel_id')
             ->orderBy('schedule_templates.start_time')
-            ->paginate(100); // Kept pagination intact for your frontend
-
+            ->get(); // 🔥 Swapped from paginate(100) to get()  
         return response()->json($schedules);
     }
     public function update(Request $request, $id)
@@ -134,5 +134,80 @@ class ScheduleListController extends Controller
     {
         DB::table('schedule_templates')->where('id', $id)->delete();
         return response()->json(['message' => 'Deleted']);
+    }
+    public function destroyItem($id)
+    {
+        $deleted = DB::table('schedule_templates')->where('id', $id)->delete();
+
+        if (!$deleted) {
+            return response()->json(['error' => 'Programme item not found.'], 404);
+        }
+
+        return response()->json(['message' => 'Programme deleted successfully.']);
+    }
+    // 2. WIPE AN ENTIRE DAY CYCLE GROUP
+    public function destroyDay($dayCycle)
+    {
+        $deleted = DB::table('schedule_templates')->where('day_cycle', $dayCycle)->delete();
+
+        if (!$deleted) {
+            return response()->json(['error' => 'No templates found for this day cycle.'], 404);
+        }
+
+        return response()->json(['message' => "All items for Day {$dayCycle} deleted successfully."]);
+    }
+
+    public function storeItem(Request $request)
+    {
+        // 1. Validate incoming parameters
+        $validated = $request->validate([
+            'day_cycle'   => 'required|integer',
+            'channel_id'  => 'required',
+            'title'       => 'required|string',
+            'start_time'  => 'required|string', // Format: HH:MM:SS
+            'end_time'    => 'required|string', // Format: HH:MM:SS
+            'description' => 'nullable|string'
+        ]);
+
+        // 2. ⏱️ Calculate the duration in seconds automatically
+        try {
+            $start = Carbon::createFromFormat('H:i:s', $validated['start_time']);
+            $end = Carbon::createFromFormat('H:i:s', $validated['end_time']);
+
+            // If the program crosses midnight (e.g., starts 23:00, ends 01:00)
+            if ($end->lessThan($start)) {
+                $end->addDay();
+            }
+
+            $durationSeconds = $start->diffInSeconds($end);
+        } catch (\Exception $e) {
+            // Fallback safety if the user typed an invalid time string format
+            $durationSeconds = 0;
+        }
+
+        // 3. Insert into database including the missing duration_seconds column!
+        // Inside ScheduleController.php -> storeItem()
+
+        $id = DB::table('schedule_templates')->insertGetId([
+            'day_cycle'        => $validated['day_cycle'],
+            'channel_id'       => $validated['channel_id'],
+            'title'            => strtoupper($validated['title']),
+            'start_time'       => $validated['start_time'],
+            'end_time'         => $validated['end_time'],
+            'duration_seconds' => $durationSeconds,
+            'file_path'        => "", // 🟢 Fixes the constraint by inserting an empty string!
+            'created_at'       => now(),
+            'updated_at'       => now()
+        ]);
+
+        // 4. Save description to dictionary safely
+        if (!empty($validated['description'])) {
+            DB::table('program_dictionaries')->updateOrInsert(
+                ['title' => strtoupper($validated['title'])],
+                ['description' => $validated['description']]
+            );
+        }
+
+        return response()->json(['success' => true, 'id' => $id]);
     }
 }

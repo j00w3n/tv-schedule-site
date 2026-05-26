@@ -12,66 +12,37 @@ class RotateSchedules extends Command
 
     public function handle()
     {
-        // 1. Get current date info in Malaysia Time
         $now = now()->timezone('Asia/Kuala_Lumpur');
-        $todayDate = (int)$now->format('j'); // 1 to 31
+        $todayDate = (int)$now->format('j'); // 25
 
-        // 2. Map the 31 days into your 12 Groups
-        $dateGroups = [
-            1 => [1, 13, 25],
-            2 => [2, 14, 26],
-            3 => [3, 15, 27],
-            4 => [4, 16, 28],
-            5 => [5, 17, 29],
-            6 => [6, 18, 30],
-            7 => [7, 19, 31],
-            8 => [8, 20],
-            9 => [9, 21],
-            10 => [10, 22],
-            11 => [11, 23],
-            12 => [12, 24]
-        ];
+        // 1. Calculate rotation index day (Evaluates to 1 today)
+        $rotationDay = (($todayDate - 1) % 12) + 1;
 
-        $baseGroup = 1;
-        foreach ($dateGroups as $groupId => $dates) {
-            if (in_array($todayDate, $dates)) {
-                $baseGroup = $groupId;
-                break;
-            }
-        }
+        $this->info("Date: " . $now->format('d M Y') . " | Executing Rotation Template Day: $rotationDay");
 
-        /**
-         * 3. Logic for Month Transitions
-         * We always look for the 0-series (1-12) as the "Live" data.
-         * Prep data for next month should stay in 100+ until the 1st of that month.
-         */
-        $targetCycle = $baseGroup;
-
-        $this->info("Date: " . $now->format('d M Y') . " | Group: $baseGroup | Deploying Cycle ID: $targetCycle");
-
-        // 4. Wipe the live table
+        // 2. Wipe the live monitor table clear
         DB::table('tv_schedules')->truncate();
 
-        // 5. Fetch templates for this specific cycle
+        // 3. Query your master 1-12 templates pool directly
         $templates = DB::table('schedule_templates')
-            ->where('day_cycle', $targetCycle)
+            ->where('day_cycle', $rotationDay)
             ->get();
 
         if ($templates->isEmpty()) {
-            $this->error("ALERT: No templates found for Cycle ID $targetCycle. Monitoring will be IDLE.");
+            $this->error("ALERT: No templates found for Rotation Day $rotationDay.");
             return;
         }
 
-        // 6. Bulk Insert for better performance
+        // 4. Ingest dataset entries
         $insertData = $templates->map(function ($item) {
             return [
-                'channel_id' => $item->channel_id,
-                'title'      => $item->title,
-                'start_time' => $item->start_time,
-                'end_time'   => $item->end_time,
+                'channel_id'       => $item->channel_id,
+                'title'            => $item->title,
+                'start_time'       => $item->start_time,
+                'end_time'         => $item->end_time,
                 'duration_seconds' => $item->duration_seconds,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'created_at'       => now(),
+                'updated_at'       => now(),
             ];
         })->toArray();
 

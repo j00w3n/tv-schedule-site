@@ -9,3 +9,7 @@ Schedule::command('app:rotate-schedules')->daily();
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Schedule::command('app:rotate-schedules')
+    ->daily()
+    ->timezone('Asia/Kuala_Lumpur');

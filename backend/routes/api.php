@@ -50,6 +50,9 @@ Route::get('/schedule/{channel}', function ($channel) {
 
 Route::get('/schedules/list', [App\Http\Controllers\ScheduleListController::class, 'index']);
 Route::put('/schedules/{id}', [App\Http\Controllers\ScheduleListController::class, 'update']);
+Route::delete('/schedules/items/{id}', [App\Http\Controllers\ScheduleListController::class, 'destroyItem']);
+Route::delete('/schedules/days/{day}', [App\Http\Controllers\ScheduleListController::class, 'destroyDay']);
+Route::post('/schedules/items', [App\Http\Controllers\ScheduleListController::class, 'storeItem']);
 Route::post('/api/program-dictionary/save', function(Request $request) {
     // Force uppercase and clean spaces before checking
     $cleanTitle = strtoupper(trim($request->title));

@@ -69,7 +69,7 @@ const ChannelMonitor = ({ ch, live, next, currentTime }) => {
                     {/* Progress Bar: Blue for Filler, Amber for Live */}
                     <div className="w-full bg-slate-800 h-1 mt-1.5 rounded-full overflow-hidden">
                         <div 
-                            className={`h-full transition-all duration-1000 ease-linear ${isFiller ? 'bg-blue-500 animate-pulse' : 'bg-amber-600'}`} 
+                            className={`h-full transition-all duration-1000 ease-linear ${isFiller ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`} 
                             style={{ width: `${isFiller ? '100' : progress}%` }} 
                         />
                     </div>
@@ -119,7 +119,19 @@ export default function Dashboard({ auth }) {
                 setIsLinkStable(false);
             }
         };
-
+    const channelnamearray = {
+        1: "VIV PRIME",
+        2: "VIV ACTION",
+        3: "VIV DRAMA",
+        4: "VIV EASY",
+        5: "VIV CHOICE",
+        6: "VIV VARIETY",
+        7: "VIV WORLD",
+        8: "VIV MOSAIC",
+        9: "VIV KIDS",
+        10: "VIV ASIA",
+        11: "VIV EAST"
+    };
         useEffect(() => {
             // Initial fetch on view load
             fetchTelemetryFeed();
@@ -235,7 +247,7 @@ export default function Dashboard({ auth }) {
                 <div className="max-w-full mx-auto space-y-6">
                     
                     {/* MONITOR GRID */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-2 mb-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-2 mb-8">
                         {Array.from({ length: 11 }, (_, i) => i + 1).map(ch => (
                             <ChannelMonitor 
                                 key={ch} 
@@ -274,13 +286,13 @@ export default function Dashboard({ auth }) {
                                     <div>
                                         <label className="text-[10px] uppercase font-bold text-slate-500">Channel</label>
                                         <select value={data.channel_id} onChange={e => setData('channel_id', e.target.value)} className="w-full bg-slate-800 text-white text-xs rounded border-slate-700">
-                                            {[...Array(11)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                                            {[...Array(11)].map((_, i) => <option key={i+1} value={i+1}>{i+1} - {channelnamearray[i+1] || `Channel ${i+1}`}</option>)}
                                         </select>
                                     </div>
                                     <div>
                                         <label className="text-[10px] uppercase font-bold text-slate-500">Group (1-12)</label>
                                         <select value={data.day_cycle} onChange={e => setData('day_cycle', e.target.value)} className="w-full bg-slate-800 text-white text-xs rounded border-slate-700">
-                                            {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                                            {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>Day {i+1}</option>)}
                                         </select>
                                     </div>
                                     <div>
@@ -336,21 +348,22 @@ export default function Dashboard({ auth }) {
                         {/* LOGS */}
                        <div className="lg:col-span-2 bg-slate-950 border border-slate-800 p-6 rounded-lg shadow-2xl relative overflow-hidden">
                             {/* CRT Monitor Effects */}
-                            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-20"></div>
+                            {/* <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-20"></div> */}
+                            <div className="absolute inset-0 pointer-events-none  bg-[length:100%_2px,3px_100%] z-20"></div>
 
                             <h3 className="text-white font-black mb-4 flex items-center justify-between text-[10px] tracking-[0.3em]">
                                 <div className="flex items-center gap-2">
                                     <span className={`p-1 text-white text-[8px] rounded font-black ${isLinkStable ? 'bg-blue-600 animate-pulse' : 'bg-rose-600'}`}>
                                         {isLinkStable ? 'LIVE' : 'DOWN'}
                                     </span>
-                                    SYSTEM_TELEMETRY_FEED
+                                    SYSTEM LOGS
                                 </div>
                                 <span className="text-slate-600 font-mono text-[8px]">
-                                    SECURE_CONNECTION // UP
+                                    system logs
                                 </span>
                             </h3>
 
-                            <div className="font-mono text-[10px] space-y-1.5 relative z-10 min-h-[140px] max-h-[220px] overflow-y-auto custom-scrollbar">
+                            <div className="font-sans text-[11px] space-y-1.5 relative z-10 min-h-[140px] max-h-[220px] overflow-y-auto custom-scrollbar">
                                 {telemetryLogs.length > 0 ? (
                                     telemetryLogs.map((log) => {
                                         // Determine layout text color based on DB status_level column
@@ -361,15 +374,16 @@ export default function Dashboard({ auth }) {
 
                                         // Format the timestamp nicely from DB string
                                         const logTime = new Date(log.created_at).toLocaleTimeString('en-US', { hour12: false });
-
+                                        const createdat = log.created_at.slice(0, 10);
                                         return (
-                                            <p key={log.id} className="tracking-tighter uppercase transition-all flex items-start gap-2">
-                                                <span className="text-slate-600 select-none">[{logTime}]</span>
+                                            <p key={log.id} className="tracking-tighter transition-all flex items-start gap-2">
+                                                <span className="text-slate-600 select-none">[{logTime} {createdat}]</span>
                                                 <span className="text-slate-500 font-black">[{log.log_type}]</span>
                                                 <span className={textClass}>
                                                     {log.message} 
-                                                    {log.channel_name && ` | ${log.channel_name}`}
-                                                    {log.day_cycle && ` | CYC_${log.day_cycle}`}
+                                                    {/* {log.channel_name && ` | ${log.channel_name}`}  */} |
+                                                    {channelnamearray[log.channel_name]}
+                                                    {log.day_cycle && ` | DAY ${log.day_cycle}`}
                                                 </span>
                                             </p>
                                         );

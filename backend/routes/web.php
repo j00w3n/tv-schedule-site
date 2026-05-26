@@ -5,9 +5,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ScheduleImportController;
-use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\ProgramDictionaryController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\ScheduleArchiveController;
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -38,3 +38,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/program-library/data', [ProgramDictionaryController::class, 'getData'])->name('program-library.data');
     Route::post('/program-library/save', [ProgramDictionaryController::class, 'saveInline'])->name('program-library.save');
 });
+
+
+// 1. Render the React Page view
+Route::get('/schedule-library/archive', function () {
+    return Inertia::render('ArchiveManager');
+})->name('archive.index');
+
+// 2. Target API Endpoint for processing the clone mass action
+Route::post('/schedule-library/clone-month', [ScheduleArchiveController::class, 'cloneMonth'])
+    ->name('schedule.clone-month');

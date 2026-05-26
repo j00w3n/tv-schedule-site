@@ -30,18 +30,27 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Dashboard
                                 </NavLink>
+                                
                                 <NavLink 
                                     href={route('library')} 
                                     active={route().current('library')}
                                 >
                                     Schedule Library
                                 </NavLink>
-                                {/* NEW NAV LINK ENTRY */}
+                                
                                 <NavLink 
                                     href={route('program-library.index')} 
                                     active={route().current('program-library.index')}
                                 >
                                     Program Library
+                                </NavLink>
+
+                                {/* FIXED & CLEANED ARCHIVE MANAGER NODE */}
+                                <NavLink 
+                                    href={route('archive.index')} 
+                                    active={route().current('archive.index')}
+                                >
+                                    Archive Manager
                                 </NavLink>
                             </div>
                         </div>
