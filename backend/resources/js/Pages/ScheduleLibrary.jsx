@@ -7,7 +7,14 @@ export default function ScheduleLibrary({ auth }) {
     const getCurrentMonthName = () => {
         return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
     };
-    const [monthOffset, setMonthOffset] = useState(0); 
+    const getActiveOffset = () => {
+        const anchorYear = 2026;
+        const anchorMonth = 4; // May (0-indexed)
+        const now = new Date();
+        const diffMonths = (now.getFullYear() - anchorYear) * 12 + (now.getMonth() - anchorMonth);
+        return Math.max(0, diffMonths * 100);
+    };
+    const [monthOffset, setMonthOffset] = useState(getActiveOffset()); 
     const [channelFilter, setChannelFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(false);
@@ -102,18 +109,23 @@ export default function ScheduleLibrary({ auth }) {
             );
         };
         const currentDate = new Date();
-            const currentMonthIdx = currentDate.getMonth(); // 4 for May
-            const currentYear = currentDate.getFullYear();  // 2026
+            const currentMonthIdx = currentDate.getMonth();
+            const currentYear = currentDate.getFullYear();
 
-            // 2. Generate the 3 dynamic months array
-            const dynamicMonths = Array.from({ length: 3 }, (_, i) => {
-                // Calculate future month indices smoothly (handles December -> January rollover perfectly)
-                const targetDate = new Date(currentYear, currentMonthIdx + i, 1);
+            const anchorYear = 2026;
+            const anchorMonth = 4; // May (0-indexed)
+
+            // Generate options from May 2026 up to 12 months in the future relative to now
+            const futureLimitDate = new Date(currentYear, currentMonthIdx + 12, 1);
+            const totalMonths = (futureLimitDate.getFullYear() - anchorYear) * 12 + (futureLimitDate.getMonth() - anchorMonth);
+
+            const dynamicMonths = Array.from({ length: totalMonths + 1 }, (_, i) => {
+                const targetDate = new Date(anchorYear, anchorMonth + i, 1);
                 const monthName = targetDate.toLocaleString('en-US', { month: 'long' });
                 const yearName = targetDate.getFullYear();
 
                 return {
-                    offsetValue: i * 100, // 0 for month 1, 100 for month 2, 200 for month 3
+                    offsetValue: i * 100,
                     label: `${monthName} ${yearName}`
                 };
             });
@@ -275,21 +287,7 @@ export default function ScheduleLibrary({ auth }) {
                                         // 🟢 STEP 1: Filter the Day keys based on your active monthOffset dropdown selection
                                         .filter((dayStr) => {
                                             const dayNum = parseInt(dayStr);
-
-                                            if (monthOffset === 0) {
-                                                // May Partition: Show only base layout tracks (Days 1 to 99)
-                                                return dayNum < 100;
-                                            }
-                                            if (monthOffset === 100) {
-                                                // June Partition: Show only the 100s track (Days 101 to 199)
-                                                return dayNum >= 101 && dayNum < 200;
-                                            }
-                                            if (monthOffset === 200) {
-                                                // July Partition: Show only the 200s track (Days 201 to 299)
-                                                return dayNum >= 201 && dayNum < 300;
-                                            }
-
-                                            return true; // Fallback default
+                                            return dayNum >= monthOffset + 1 && dayNum <= monthOffset + 99;
                                         })
                                         // 🔵 STEP 2: Map through only the matching partitioned days
                                         .map((day) => {
@@ -297,10 +295,8 @@ export default function ScheduleLibrary({ auth }) {
                                             const programs = groupedSchedules[day];
                                             
                                             // 🟢 STEP 3: Assign the month name tag directly matching the current filter option
-                                            let monthName = "Unknown Month";
-                                            if (monthOffset === 0) monthName = "May";
-                                            else if (monthOffset === 100) monthName = "June";
-                                            else if (monthOffset === 200) monthName = "July";
+                                            const currentMonthObj = dynamicMonths.find(m => m.offsetValue === monthOffset);
+                                            const monthName = currentMonthObj ? currentMonthObj.label.split(' ')[0] : "Unknown Month";
 
                                             return (
                                                 <React.Fragment key={day}>

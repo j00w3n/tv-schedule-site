@@ -98,7 +98,15 @@ export default function Dashboard({ auth }) {
     const [monitorData, setMonitorData] = useState({ live: {}, next: {}, currentTime: '' });
     const [tick, setTick] = useState(0); // This forces the progress bars to update
     
-    const [targetOffset, setTargetOffset] = useState(0);
+    const getActiveOffset = () => {
+        const anchorYear = 2026;
+        const anchorMonth = 4; // May (0-indexed)
+        const now = new Date();
+        const diffMonths = (now.getFullYear() - anchorYear) * 12 + (now.getMonth() - anchorMonth);
+        return Math.max(0, diffMonths * 100);
+    };
+
+    const [targetOffset, setTargetOffset] = useState(getActiveOffset());
     const { data, setData, post, processing, errors, reset } = useForm({
         channel_id: '1',
         day_cycle: '1', // Default to Day 1
@@ -169,21 +177,30 @@ export default function Dashboard({ auth }) {
         };
     }, []);
 
-// 1. Generate the next 3 months dynamically
+// 1. Generate month options dynamically starting from May 2026 to 12 months in the future
         const getMonthOptions = () => {
         const options = [];
-        const now = new Date();
+        const anchorYear = 2026;
+        const anchorMonth = 4; // May (0-indexed)
         
-        for (let i = 0; i < 3; i++) {
-            // Create a date object for current month + i
-            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        
+        const futureLimitDate = new Date(currentYear, currentMonth + 12, 1);
+        const totalMonths = (futureLimitDate.getFullYear() - anchorYear) * 12 + (futureLimitDate.getMonth() - anchorMonth);
+        
+        for (let i = 0; i <= totalMonths; i++) {
+            const d = new Date(anchorYear, anchorMonth + i, 1);
             const monthName = d.toLocaleString('default', { month: 'long' }).toUpperCase();
             const year = d.getFullYear();
+            const absoluteOffset = i * 100;
+            const isLive = d.getFullYear() === currentYear && d.getMonth() === currentMonth;
             
             options.push({
                 label: `${monthName} ${year}`,
-                offset: i * 100, // May = 0, June = 100, July = 200
-                isLive: i === 0
+                offset: absoluteOffset,
+                isLive: isLive
             });
         }
         return options;

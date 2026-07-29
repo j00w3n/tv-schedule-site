@@ -4,14 +4,36 @@ import { router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 export default function ArchiveManager() {
-    const monthsPool = [
-        { name: 'May 2026', offset: 0, status: 'Active Pool', isActive: true },
-        { name: 'June 2026', offset: 100, status: 'Standby', isActive: false },
-        { name: 'July 2026', offset: 200, status: 'Standby', isActive: false },
-        { name: 'August 2026', offset: 300, status: 'Standby', isActive: false },
-        { name: 'September 2026', offset: 400, status: 'Standby', isActive: false },
-        { name: 'October 2026', offset: 500, status: 'Standby', isActive: false },
-    ];
+    const getMonthsPool = () => {
+        const list = [];
+        const anchorYear = 2026;
+        const anchorMonth = 4; // May (0-indexed)
+        
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        
+        const futureLimitDate = new Date(currentYear, currentMonth + 12, 1);
+        const totalMonths = (futureLimitDate.getFullYear() - anchorYear) * 12 + (futureLimitDate.getMonth() - anchorMonth);
+        
+        for (let i = 0; i <= totalMonths; i++) {
+            const d = new Date(anchorYear, anchorMonth + i, 1);
+            const monthName = d.toLocaleString('en-US', { month: 'long' });
+            const year = d.getFullYear();
+            const offset = i * 100;
+            const isLive = d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+            
+            list.push({
+                name: `${monthName} ${year}`,
+                offset: offset,
+                status: isLive ? 'Active Pool' : 'Standby',
+                isActive: isLive
+            });
+        }
+        return list;
+    };
+
+    const monthsPool = getMonthsPool();
 
     // Array dictionary matching your system layouts (omitting Ch 9)
     const availableChannels = [
